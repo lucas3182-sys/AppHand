@@ -688,7 +688,26 @@
   .modal-btn.no{ background: rgba(255,255,255,0.08); color: var(--ink); border: 1px solid var(--line); }
 
   /* ---------- SCREEN 6 : RECAP DU MATCH ---------- */
-  #screen-recap{ padding-top: clamp(10px, 2vh, 20px); }
+   #screen-recap{ padding-top: clamp(8px, 1.4vh, 14px); overflow-y: auto; }
+
+  /* Tableau agrandi et plus lisible sur l'écran Résultat du match */
+  #screen-recap .match-cols{ max-width: 1400px; }
+  #screen-recap .match-row{
+    padding: clamp(10px, 1.8vh, 16px) clamp(12px, 1.6vw, 18px);
+  }
+  #screen-recap .mr-name{
+    font-size: clamp(16px, 1.9vw, 20px);
+  }
+  #screen-recap .mr-contract{
+    font-size: clamp(14px, 1.6vw, 17px);
+  }
+  #screen-recap .mr-value{
+    font-size: clamp(26px, 2.8vw, 32px);
+    min-width: clamp(36px, 3.2vw, 44px);
+  }
+  #screen-recap .col-name{
+    font-size: clamp(20px, 2.4vw, 28px);
+  }
 
   .mr-value.readonly{ cursor: default; }
 
@@ -1690,13 +1709,13 @@
 
       const filename = `classement-final-${Date.now()}.pdf`;
 
-      if(IS_NATIVE && Filesystem){
-        // écriture native, hors-ligne, directement dans le dossier Documents de la tablette
+           if(IS_NATIVE && CAP && CAP.Plugins && CAP.Plugins.DocumentSaver){
+        // écriture native, hors-ligne, directement dans le vrai dossier "Documents" public de la tablette
         const base64 = pdf.output('datauristring').split(',')[1];
-        await Filesystem.writeFile({
-          path: filename,
+        await CAP.Plugins.DocumentSaver.saveToDocuments({
           data: base64,
-          directory: Directory.Documents
+          filename: filename,
+          mimeType: 'application/pdf'
         });
         console.log('PDF enregistré dans Documents :', filename);
       } else {
