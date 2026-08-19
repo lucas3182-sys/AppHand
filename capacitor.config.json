@@ -1,0 +1,17 @@
+{
+  "appId": "fr.eps.handballcontrats",
+  "appName": "HandContrats",
+  "webDir": "www",
+  "backgroundColor": "#050d16",
+  "android": {
+    "backgroundColor": "#050d16"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#050d16",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    }
+  }
+}

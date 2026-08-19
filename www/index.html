@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Handball - Contrats</title>
+<link rel="stylesheet" href="css/fonts.css">
+
+<!-- Capacitor core + plugins (local, no network needed at runtime) -->
+<script src="js/vendor/capacitor.js"></script>
+<script src="js/vendor/capacitor-preferences.js"></script>
+<script src="js/vendor/capacitor-filesystem.js"></script>
+<script src="js/vendor/capacitor-app.js"></script>
+
+<!-- PDF export -->
+<script src="js/vendor/html2canvas.min.js"></script>
+<script src="js/vendor/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg-1: #050d16;
+    --bg-2: #0c2436;
+    --bg-3: #0f3349;
+    --ink: #eaf4f8;
+    --ink-dim: #8fb0bd;
+    --line: rgba(255,255,255,0.08);
+    --panel: rgba(255,255,255,0.035);
+
+    --team-a: #35d6e0;
+    --team-a-dim: rgba(53,214,224,0.12);
+    --team-b: #f4c542;
+    --team-b-dim: rgba(244,197,66,0.12);
+    --team-c: #ff6b4a;
+    --team-c-dim: rgba(255,107,74,0.12);
+
+    --violet: #a78bfa;
+    --violet-dim: rgba(167,139,250,0.12);
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body{
+    margin:0; padding:0; height:100%;
+    font-family: 'Inter', sans-serif;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(53,214,224,0.10), transparent 60%),
+      radial-gradient(900px 600px at 105% 20%, rgba(255,107,74,0.08), transparent 55%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 55%, var(--bg-3) 100%);
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  .app{ position: relative; height: 100vh; width: 100vw; }
+
+  .screen{
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: clamp(16px, 3vh, 36px) clamp(20px, 4vw, 56px);
+    opacity: 0;
+    transition: opacity .35s ease;
+  }
+  .screen.active{ display: flex; opacity: 1; }
+
+  /* ---------- SCREEN 0 : START ---------- */
+  #screen-start{
+    justify-content: center;
+    padding: 0;
+  }
+  .start-stage{
+    position: relative;
+    width: 100%; height: 100%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .hero-img{
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-58%, -50%);
+    height: 78vh;
+    max-width: 68vw;
+    object-fit: contain;
+    filter: drop-shadow(0 20px 60px rgba(53,214,224,0.25));
+  }
+  .brand{
+    position: absolute;
+    top: clamp(20px, 4vh, 44px);
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+  .brand-eyebrow{
+    font-family:'Teko', sans-serif;
+    letter-spacing: .4em;
+    font-size: clamp(12px, 1.3vw, 15px);
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .brand-title{
+    font-family:'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(30px, 4vw, 46px);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-top: 2px;
+  }
+  .brand-title span{ color: var(--team-a); }
+
+  .start-btn{
+    position: absolute;
+    right: clamp(6vw, 10vw, 14vw);
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 3.4vw, 40px);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #06141d;
+    background: radial-gradient(circle at 35% 30%, #4ee9f2, var(--team-a) 70%);
+    border: none;
+    width: clamp(140px, 14vw, 190px);
+    height: clamp(140px, 14vw, 190px);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 0 6px rgba(53,214,224,0.10), 0 12px 40px rgba(53,214,224,0.35);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow: 0 0 0 6px rgba(53,214,224,0.10), 0 12px 40px rgba(53,214,224,0.35); }
+    50%{ box-shadow: 0 0 0 14px rgba(53,214,224,0.05), 0 12px 50px rgba(53,214,224,0.5); }
+  }
+  .start-btn:active{ transform: translateY(-50%) scale(0.96); }
+
+  /* ---------- shared: eyebrow / title ---------- */
+  .eyebrow{
+    font-family: 'Teko', sans-serif;
+    letter-spacing: 0.35em;
+    font-size: clamp(13px, 1.4vw, 16px);
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  h1{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(34px, 5.2vw, 58px);
+    letter-spacing: 0.02em;
+    margin: 0 0 clamp(16px, 3vh, 34px) 0;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ---------- SCREEN 1 : COMPOSITION DES EQUIPES ---------- */
+  .teams{
+    flex: 1;
+    width: 100%;
+    max-width: 1400px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(14px, 2vw, 28px);
+    min-height: 0;
+  }
+  .team-card{
+    display: flex; flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: clamp(14px, 2vh, 24px) clamp(14px, 1.6vw, 22px);
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .team-card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:4px;
+    background: var(--accent);
+  }
+  .team-card.a{ --accent: var(--team-a); }
+  .team-card.b{ --accent: var(--team-b); }
+  .team-card.c{ --accent: var(--team-c); }
+
+  .team-head{ display:flex; align-items:baseline; justify-content: space-between; margin-bottom: clamp(10px, 2vh, 18px); }
+  .team-name{
+    font-family: 'Teko', sans-serif; font-weight: 600;
+    font-size: clamp(26px, 3.4vw, 36px); color: var(--accent);
+    letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .team-count{ font-size: clamp(11px, 1.1vw, 13px); color: var(--ink-dim); font-weight: 500; }
+
+  .players{ display:flex; flex-direction: column; gap: clamp(8px, 1.4vh, 14px); flex: 1; justify-content: center; }
+  .player-row{ display:flex; align-items:center; gap: 12px; }
+  .player-num{
+    flex: 0 0 auto;
+    width: clamp(30px, 3vw, 38px); height: clamp(30px, 3vw, 38px);
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--accent); color: var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    font-family: 'Teko', sans-serif; font-size: clamp(16px, 1.8vw, 20px); font-weight: 600;
+  }
+  .team-card.a .player-num{ background: var(--team-a-dim); }
+  .team-card.b .player-num{ background: var(--team-b-dim); }
+  .team-card.c .player-num{ background: var(--team-c-dim); }
+
+  input.player-name{
+    flex: 1; min-width: 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: clamp(10px, 1.6vh, 14px) 14px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(15px, 1.6vw, 18px); font-weight: 500;
+    outline: none;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  input.player-name::placeholder{ color: rgba(234,244,248,0.32); }
+  input.player-name:focus{ border-color: var(--accent); background: rgba(255,255,255,0.07); }
+
+  .footer{ width: 100%; display:flex; justify-content:center; margin-top: clamp(16px, 3vh, 30px); }
+  .cta{
+    font-family: 'Teko', sans-serif; font-weight: 600;
+    font-size: clamp(20px, 2.4vw, 26px); letter-spacing: 0.06em; text-transform: uppercase;
+    color: #06141d;
+    background: linear-gradient(135deg, var(--team-a), #21b8c4);
+    border: none; border-radius: 999px;
+    padding: clamp(14px, 2vh, 18px) clamp(38px, 5vw, 64px);
+    cursor: pointer;
+    box-shadow: 0 8px 30px rgba(53,214,224,0.28);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .cta:active{ transform: scale(0.97); box-shadow: 0 4px 16px rgba(53,214,224,0.22); }
+
+  .hint{ text-align:center; color: var(--ink-dim); font-size: clamp(11px, 1.1vw, 13px); margin-top: 8px; }
+
+  .back-link{
+    position: absolute;
+    top: clamp(14px, 2.4vh, 22px);
+    left: clamp(16px, 3vw, 32px);
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(12px, 1.1vw, 14px);
+    color: var(--ink-dim);
+    background: none; border: none;
+    cursor: pointer;
+    display:flex; align-items:center; gap:6px;
+  }
+  .back-link:hover{ color: var(--ink); }
+
+  /* ---------- SCREEN 2 : MISE EN PLACE DES CONTRATS ---------- */
+  .contracts{
+    flex: 1;
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(10px, 1.8vh, 18px);
+    min-height: 0;
+    justify-content: center;
+  }
+
+  .contract-card{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(14px, 2vw, 28px);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 16px;
+    padding: clamp(14px, 2vh, 20px) clamp(16px, 2.4vw, 28px);
+  }
+
+  .contract-card.c1{ --accent: var(--team-a); }
+  .contract-card.c2{ --accent: var(--team-b); }
+  .contract-card.c3{ --accent: var(--team-c); }
+  .contract-card.c4{ --accent: var(--violet); }
+
+  .contract-info{ display:flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .contract-title{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(22px, 2.6vw, 30px);
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .contract-sub{
+    font-size: clamp(12px, 1.2vw, 14px);
+    color: var(--ink-dim);
+  }
+
+  .stepper{
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: clamp(10px, 1.4vw, 16px);
+  }
+  .stepper-btn{
+    width: clamp(38px, 4vw, 48px);
+    height: clamp(38px, 4vw, 48px);
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    background: rgba(255,255,255,0.04);
+    color: var(--accent);
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(22px, 2.6vw, 28px);
+    line-height: 1;
+    cursor: pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: background .12s ease, transform .1s ease;
+  }
+  .stepper-btn:active{ transform: scale(0.92); background: rgba(255,255,255,0.1); }
+
+  .stepper-value{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(30px, 3.6vw, 42px);
+    color: var(--ink);
+    min-width: clamp(36px, 3.4vw, 48px);
+    text-align: center;
+  }
+
+  /* ---------- SCREEN 3 : MATCHUP (ÉQUIPE X VS ÉQUIPE Y) ---------- */
+  .matchup-stage{
+    flex: 1;
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: clamp(18px, 3vh, 30px);
+  }
+
+  .matchup-title{
+    text-align: center;
+    font-family: 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 4.4vw, 50px);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: clamp(10px, 2vh, 20px);
+  }
+  .matchup-title .vs{ color: var(--ink-dim); font-size: 0.7em; margin: 0 14px; }
+  .matchup-title .side-a{ color: var(--m-color-1, var(--team-a)); }
+  .matchup-title .side-b{ color: var(--m-color-2, var(--team-b)); }
+
+  .matchup-cols{
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: clamp(16px, 2.4vw, 32px);
+  }
+
+  .matchup-col{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--col-accent);
+    border-radius: 18px;
+    padding: clamp(16px, 2.4vh, 26px);
+  }
+  .matchup-col .col-name{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(22px, 2.6vw, 28px);
+    color: var(--col-accent);
+    text-transform: uppercase;
+    margin-bottom: clamp(10px, 1.6vh, 16px);
+    text-align: center;
+  }
+  .matchup-col ul{
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: clamp(8px, 1.2vh, 12px);
+  }
+  .matchup-col li{
+    font-size: clamp(15px, 1.6vw, 19px);
+    font-weight: 500;
+    text-align: center;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 10px 8px;
+  }
+
+  .vs-badge{
+    font-family: 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: clamp(22px, 2.6vw, 30px);
+    color: var(--ink-dim);
+    text-align: center;
+  }
+
+  /* ---------- SCREEN 4 : CHOIX DES CONTRATS PAR JOUEUR ---------- */
+  .select-cols{
+    flex: 1;
+    width: 100%;
+    max-width: 1300px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(12px, 2vw, 26px);
+    min-height: 0;
+  }
+
+  .select-col{
+    display: flex; flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--col-accent);
+    border-radius: 16px;
+    padding: clamp(10px, 1.6vh, 16px) clamp(12px, 1.6vw, 18px);
+    min-height: 0;
+  }
+  .select-col .col-name{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(18px, 2.1vw, 24px);
+    color: var(--col-accent);
+    text-transform: uppercase;
+    margin-bottom: clamp(6px, 1vh, 10px);
+    text-align: center;
+  }
+
+  .player-contract-row{
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: clamp(6px, 1.1vh, 10px) clamp(8px, 1.1vw, 12px);
+    transition: border-color .15s ease, background .15s ease;
+    flex: 1;
+    min-height: 0;
+  }
+  .player-contract-row + .player-contract-row{ margin-top: clamp(6px, 1vh, 10px); }
+  .select-col > #select-list-1, .select-col > #select-list-2{
+    display: flex; flex-direction: column; flex: 1; min-height: 0;
+  }
+  .player-contract-row.duplicate{
+    border-color: #ff4d4d;
+    background: rgba(255,77,77,0.10);
+  }
+
+  .pc-name{
+    font-size: clamp(12px, 1.3vw, 15px);
+    font-weight: 600;
+    flex: 0 0 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 30%;
+  }
+
+  .pc-picker{
+    display: flex; align-items: center; gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .pc-btn{
+    width: clamp(24px, 2.4vw, 30px);
+    height: clamp(24px, 2.4vw, 30px);
+    border-radius: 50%;
+    border: 1px solid var(--pc-color);
+    background: rgba(255,255,255,0.04);
+    color: var(--pc-color);
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(15px, 1.7vw, 19px);
+    line-height: 1;
+    cursor: pointer;
+    display:flex; align-items:center; justify-content:center;
+    flex: 0 0 auto;
+  }
+  .pc-btn:active{ transform: scale(0.9); }
+
+  .pc-label{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(12px, 1.35vw, 16px);
+    color: var(--pc-color);
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    text-align: center;
+    min-width: clamp(110px, 12vw, 160px);
+  }
+
+  .select-hint{
+    text-align:center;
+    color: #ff6b4a;
+    font-size: clamp(11px, 1.1vw, 13px);
+    margin-top: 4px;
+    min-height: 1.2em;
+  }
+
+  h1.compact{
+    font-size: clamp(22px, 3vw, 32px);
+    margin-bottom: clamp(10px, 1.6vh, 18px);
+  }
+
+  /* ---------- SCREEN 5 : MATCH EN COURS (OBSERVATION) ---------- */
+  #screen-match{ padding-top: clamp(10px, 2vh, 20px); }
+
+  .match-cols{
+    flex: 1;
+    width: 100%;
+    max-width: 1300px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(12px, 2vw, 26px);
+    min-height: 0;
+  }
+  .match-col{
+    display: flex; flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--col-accent);
+    border-radius: 16px;
+    padding: clamp(10px, 1.6vh, 16px) clamp(12px, 1.6vw, 18px);
+    min-height: 0;
+  }
+  .match-col .col-name{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(18px, 2.1vw, 24px);
+    color: var(--col-accent);
+    text-transform: uppercase;
+    margin-bottom: clamp(6px, 1vh, 10px);
+    text-align: center;
+  }
+  .match-col .rows{ display:flex; flex-direction: column; flex: 1; min-height: 0; gap: clamp(6px, 1vh, 10px); }
+
+  .match-row{
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: clamp(6px, 1.1vh, 10px) clamp(8px, 1.1vw, 12px);
+    flex: 1;
+    min-height: 0;
+  }
+
+  .mr-info{ min-width: 0; flex: 1; }
+  .mr-name{
+    font-size: clamp(13px, 1.4vw, 16px);
+    font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mr-contract{
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(11px, 1.2vw, 14px);
+    color: var(--mr-color);
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .mr-counter{
+    display:flex; align-items:center; gap: 6px; flex: 0 0 auto;
+  }
+  .mr-btn{
+    width: clamp(26px, 2.6vw, 32px);
+    height: clamp(26px, 2.6vw, 32px);
+    border-radius: 50%;
+    border: 1px solid var(--ink-dim);
+    background: rgba(255,255,255,0.04);
+    color: var(--ink);
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(16px, 1.8vw, 20px);
+    line-height: 1;
+    cursor: pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mr-btn:active{ transform: scale(0.9); }
+
+  .mr-value{
+    font-family: 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: clamp(20px, 2.2vw, 26px);
+    min-width: clamp(28px, 2.6vw, 34px);
+    text-align: center;
+    color: var(--ink);
+    transition: color .15s ease;
+  }
+  .mr-value.validated{ color: #4ade80; }
+
+  .score-bar{
+    width: 100%;
+    max-width: 1300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: clamp(10px, 1.8vh, 18px);
+    padding: clamp(8px, 1.4vh, 14px) 0;
+  }
+  .score-title{
+    font-family: 'Teko', sans-serif;
+    letter-spacing: 0.3em;
+    font-size: clamp(12px, 1.3vw, 15px);
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: clamp(6px, 1vh, 10px);
+  }
+  .score-blocks{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(24px, 5vw, 64px);
+  }
+  .score-block{ display:flex; align-items:center; gap: clamp(10px, 1.4vw, 16px); }
+  .score-label{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(16px, 1.8vw, 20px);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--score-color);
+  }
+  .score-btn{
+    width: clamp(32px, 3.2vw, 40px);
+    height: clamp(32px, 3.2vw, 40px);
+    border-radius: 50%;
+    border: 1px solid var(--score-color);
+    background: rgba(255,255,255,0.04);
+    color: var(--score-color);
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(18px, 2vw, 22px);
+    cursor: pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .score-btn:active{ transform: scale(0.9); }
+  .score-value{
+    font-family: 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 3.6vw, 42px);
+    min-width: clamp(36px, 3.4vw, 46px);
+    text-align: center;
+  }
+
+  .end-match-btn{
+    margin-top: clamp(8px, 1.4vh, 14px);
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(16px, 1.8vw, 20px);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #ff8a6b;
+    background: rgba(255,107,74,0.08);
+    border: 1px solid rgba(255,107,74,0.5);
+    border-radius: 999px;
+    padding: clamp(10px, 1.4vh, 14px) clamp(28px, 3.6vw, 44px);
+    cursor: pointer;
+  }
+  .end-match-btn:active{ transform: scale(0.97); }
+
+  /* ---------- MODAL ---------- */
+  .modal-overlay{
+    position: fixed; inset: 0;
+    background: rgba(2,8,14,0.72);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 50;
+  }
+  .modal-overlay.active{ display: flex; }
+  .modal-card{
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-3));
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: clamp(24px, 3.6vh, 36px) clamp(28px, 3.6vw, 44px);
+    max-width: 460px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-text{
+    font-size: clamp(16px, 1.8vw, 19px);
+    font-weight: 500;
+    margin-bottom: clamp(18px, 2.6vh, 26px);
+    line-height: 1.4;
+  }
+  .modal-actions{ display:flex; gap: 14px; justify-content: center; }
+  .modal-btn{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(18px, 2vw, 22px);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 10px clamp(28px, 3.6vw, 40px);
+    cursor: pointer;
+    border: none;
+  }
+  .modal-btn.yes{ background: linear-gradient(135deg, #ff6b4a, #e0442a); color: #fff; }
+  .modal-btn.no{ background: rgba(255,255,255,0.08); color: var(--ink); border: 1px solid var(--line); }
+
+  /* ---------- SCREEN 6 : RECAP DU MATCH ---------- */
+  #screen-recap{ padding-top: clamp(10px, 2vh, 20px); }
+
+  .mr-value.readonly{ cursor: default; }
+
+  .recap-summary{
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(6px, 1.2vh, 12px);
+    margin-top: clamp(10px, 1.8vh, 18px);
+    padding: clamp(10px, 1.8vh, 18px) clamp(16px, 2.4vw, 30px);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  .recap-line{
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(13px, 1.4vw, 16px);
+    color: var(--ink-dim);
+    text-align: center;
+  }
+  .recap-line b{ color: var(--ink); font-weight: 600; }
+  .recap-line.contracts b.count-a{ color: var(--team-a); }
+  .recap-final{
+    font-family: 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: clamp(30px, 3.8vw, 44px);
+    letter-spacing: .02em;
+    margin-top: 4px;
+  }
+  .recap-final span{ margin: 0 10px; }
+
+  /* ---------- SCREEN 7 : CLASSEMENT FINAL ---------- */
+  #screen-final{
+    overflow-y: auto;
+    align-items: center;
+    padding-top: clamp(14px, 2.4vh, 26px);
+    padding-bottom: clamp(20px, 3vh, 32px);
+  }
+
+  .final-scroll{
+    width: 100%;
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2.4vh, 26px);
+  }
+
+  .final-summary-table{
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .final-summary-table th, .final-summary-table td{
+    padding: clamp(8px, 1.4vh, 14px) clamp(10px, 1.6vw, 18px);
+    text-align: center;
+  }
+  .final-summary-table thead tr{ background: rgba(255,255,255,0.05); }
+  .final-summary-table th{
+    font-family: 'Teko', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-size: clamp(13px, 1.4vw, 16px);
+    color: var(--ink-dim);
+    font-weight: 500;
+  }
+  .final-summary-table td{
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(14px, 1.6vw, 18px);
+    font-weight: 700;
+  }
+  .final-summary-table tbody tr + tr td{ border-top: 1px solid var(--line); }
+
+  .final-match-block{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: clamp(14px, 2vh, 20px) clamp(14px, 2vw, 22px);
+  }
+  .final-match-title{
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(20px, 2.4vw, 26px);
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .final-match-score{
+    font-family: 'Teko', sans-serif;
+    font-weight: 700;
+    font-size: clamp(16px, 1.8vw, 20px);
+    text-align: center;
+    color: var(--ink-dim);
+    margin-bottom: clamp(10px, 1.6vh, 16px);
+  }
+  .final-match-score b{ font-weight: 700; }
+  .final-match-cols{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(12px, 2vw, 22px);
+  }
+  .final-rows{
+    display: flex;
+    flex-direction: column;
+    gap: clamp(6px, 1vh, 10px);
+  }
+  .final-match-cols .match-col{
+    background: none;
+    border: none;
+    padding: 0;
+  }  #screen-final .back-link{ position: absolute; top: clamp(14px, 2.4vh, 22px); left: clamp(16px, 3vw, 32px); z-index: 5; }
+
+  .stop-btn{
+    position: absolute;
+    top: clamp(14px, 2.4vh, 22px);
+    right: clamp(16px, 3vw, 32px);
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(12px, 1.1vw, 14px);
+    font-weight: 600;
+    color: #ff8a6b;
+    background: rgba(255,107,74,0.08);
+    border: 1px solid rgba(255,107,74,0.5);
+    border-radius: 999px;
+    padding: 8px 16px;
+    cursor: pointer;
+    display:flex; align-items:center; gap:6px;
+    z-index: 5;
+  }
+  .stop-btn:active{ transform: scale(0.96); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SCREEN 0 : START -->
+  <div class="screen active" id="screen-start">
+    <div class="start-stage">
+      <div class="brand">
+        <div class="brand-eyebrow">Éducation Physique &amp; Sportive</div>
+        <div class="brand-title">Hand<span>Contrats</span></div>
+      </div>
+      <img class="hero-img" src="assets/hero.png" alt="Joueuse de handball">
+      <button class="start-btn" id="btn-start">Start</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 1 : COMPOSITION DES EQUIPES -->
+  <div class="screen" id="screen-teams">
+    <button class="back-link" id="btn-back-1">&larr; Retour</button>
+    <div class="eyebrow">Étape 1 / 2</div>
+    <h1>Composition des équipes</h1>
+
+    <div class="teams">
+      <div class="team-card a">
+        <div class="team-head">
+          <div class="team-name">Équipe A</div>
+          <div class="team-count" data-count="a">0/4</div>
+        </div>
+        <div class="players" data-team="a"></div>
+      </div>
+
+      <div class="team-card b">
+        <div class="team-head">
+          <div class="team-name">Équipe B</div>
+          <div class="team-count" data-count="b">0/4</div>
+        </div>
+        <div class="players" data-team="b"></div>
+      </div>
+
+      <div class="team-card c">
+        <div class="team-head">
+          <div class="team-name">Équipe C</div>
+          <div class="team-count" data-count="c">0/4</div>
+        </div>
+        <div class="players" data-team="c"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button class="cta" id="next-btn">Mise en place des contrats</button>
+    </div>
+    <div class="hint" id="hint">Renseignez le nom des 4 joueurs de chaque équipe pour continuer</div>
+  </div>
+
+  <!-- SCREEN 2 : MISE EN PLACE DES CONTRATS -->
+  <div class="screen" id="screen-contracts">
+    <button class="back-link" id="btn-back-2">&larr; Retour</button>
+    <div class="eyebrow">Étape 2 / 2</div>
+    <h1>Mise en place des contrats</h1>
+
+    <div class="contracts">
+      <div class="contract-card c1">
+        <div class="contract-info">
+          <div class="contract-title">Buts marqués</div>
+          <div class="contract-sub">Objectif de buts à valider</div>
+        </div>
+        <div class="stepper" data-contract="buts">
+          <button class="stepper-btn minus">&minus;</button>
+          <div class="stepper-value">3</div>
+          <button class="stepper-btn plus">&plus;</button>
+        </div>
+      </div>
+
+      <div class="contract-card c2">
+        <div class="contract-info">
+          <div class="contract-title">Passes décisives</div>
+          <div class="contract-sub">Objectif de passes décisives à valider</div>
+        </div>
+        <div class="stepper" data-contract="passes">
+          <button class="stepper-btn minus">&minus;</button>
+          <div class="stepper-value">3</div>
+          <button class="stepper-btn plus">&plus;</button>
+        </div>
+      </div>
+
+      <div class="contract-card c3">
+        <div class="contract-info">
+          <div class="contract-title">Récupérations</div>
+          <div class="contract-sub">Objectif de récupérations à valider</div>
+        </div>
+        <div class="stepper" data-contract="recuperations">
+          <button class="stepper-btn minus">&minus;</button>
+          <div class="stepper-value">3</div>
+          <button class="stepper-btn plus">&plus;</button>
+        </div>
+      </div>
+
+      <div class="contract-card c4">
+        <div class="contract-info">
+          <div class="contract-title">Arrêt du gardien</div>
+          <div class="contract-sub">Objectif d'arrêts à valider</div>
+        </div>
+        <div class="stepper" data-contract="arrets">
+          <button class="stepper-btn minus">&minus;</button>
+          <div class="stepper-value">3</div>
+          <button class="stepper-btn plus">&plus;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button class="cta" id="start-match-btn">Commencer le premier match</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 3 : MATCHUP -->
+  <div class="screen" id="screen-matchup">
+    <button class="back-link" id="btn-back-3">&larr; Retour</button>
+    <div class="matchup-stage">
+      <div class="matchup-title" id="matchup-title"></div>
+      <div class="matchup-cols">
+        <div class="matchup-col" id="matchup-col-1">
+          <div class="col-name" id="matchup-name-1"></div>
+          <ul id="matchup-list-1"></ul>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="matchup-col" id="matchup-col-2">
+          <div class="col-name" id="matchup-name-2"></div>
+          <ul id="matchup-list-2"></ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <button class="cta" id="go-btn">Go</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 4 : CHOIX DES CONTRATS PAR JOUEUR -->
+  <div class="screen" id="screen-contract-select">
+    <button class="back-link" id="btn-back-4">&larr; Retour</button>
+    <h1 class="compact" id="select-title">Choix des contrats</h1>
+
+    <div class="select-cols">
+      <div class="select-col" id="select-col-1">
+        <div class="col-name" id="select-name-1"></div>
+        <div id="select-list-1"></div>
+      </div>
+      <div class="select-col" id="select-col-2">
+        <div class="col-name" id="select-name-2"></div>
+        <div id="select-list-2"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button class="cta" id="play-btn">Commencer à jouer</button>
+    </div>
+    <div class="select-hint" id="select-hint"></div>
+  </div>
+
+  <!-- SCREEN 5 : MATCH EN COURS (OBSERVATION) -->
+  <div class="screen" id="screen-match">
+    <h1 class="compact" id="match-title">Match en cours</h1>
+
+    <div class="match-cols">
+      <div class="match-col" id="match-col-1">
+        <div class="col-name" id="match-name-1"></div>
+        <div class="rows" id="match-rows-1"></div>
+      </div>
+      <div class="match-col" id="match-col-2">
+        <div class="col-name" id="match-name-2"></div>
+        <div class="rows" id="match-rows-2"></div>
+      </div>
+    </div>
+
+    <div class="score-bar">
+      <div class="score-title" id="score-title">Score du match</div>
+      <div class="score-blocks">
+      <div class="score-block" id="score-block-1">
+        <div class="score-label" id="score-label-1"></div>
+        <button class="score-btn minus">&minus;</button>
+        <div class="score-value" id="score-value-1">0</div>
+        <button class="score-btn plus">&plus;</button>
+      </div>
+      <div class="score-block" id="score-block-2">
+        <div class="score-label" id="score-label-2"></div>
+        <button class="score-btn minus">&minus;</button>
+        <div class="score-value" id="score-value-2">0</div>
+        <button class="score-btn plus">&plus;</button>
+      </div>
+      </div>
+    </div>
+
+    <button class="end-match-btn" id="end-match-btn">Fin du match</button>
+  </div>
+
+  <!-- SCREEN 6 : RECAP DU MATCH -->
+  <div class="screen" id="screen-recap">
+    <button class="back-link" id="btn-back-recap">&larr; Retour</button>
+    <button class="stop-btn" id="stop-tournament-btn" title="Quitter le tournoi">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+      Stop
+    </button>
+    <h1 class="compact" id="recap-title">Résultat du match</h1>
+
+    <div class="match-cols">
+      <div class="match-col" id="recap-col-1">
+        <div class="col-name" id="recap-name-1"></div>
+        <div class="rows" id="recap-rows-1"></div>
+      </div>
+      <div class="match-col" id="recap-col-2">
+        <div class="col-name" id="recap-name-2"></div>
+        <div class="rows" id="recap-rows-2"></div>
+      </div>
+    </div>
+
+    <div class="recap-summary">
+      <div class="recap-line" id="recap-line-score">Score du match : <b></b></div>
+      <div class="recap-line contracts" id="recap-line-contracts"></div>
+      <div class="recap-final" id="recap-final"></div>
+    </div>
+
+    <button class="cta" id="next-match-btn" style="margin-top: clamp(10px,1.8vh,16px);">Passer au match suivant</button>
+  </div>
+
+  <!-- SCREEN 7 : CLASSEMENT FINAL -->
+  <div class="screen" id="screen-final">
+    <button class="back-link" id="home-btn" title="Revenir à l'accueil">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Accueil
+    </button>
+    <h1 class="compact">Classement final</h1>
+    <div class="final-scroll" id="final-scroll">
+
+      <table class="final-summary-table">
+        <thead>
+          <tr><th>Rang</th><th>Équipe</th><th>Points</th><th>Contrats validés</th><th>Diff. de buts</th></tr>
+        </thead>
+        <tbody id="final-summary-body"></tbody>
+      </table>
+
+      <div class="final-match-block" id="final-block-1">
+        <div class="final-match-title"></div>
+        <div class="final-match-score"></div>
+        <div class="final-match-cols">
+          <div class="match-col">
+            <div class="col-name final-col-name-1"></div>
+            <div class="final-rows final-rows-1"></div>
+          </div>
+          <div class="match-col">
+            <div class="col-name final-col-name-2"></div>
+            <div class="final-rows final-rows-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="final-match-block" id="final-block-2">
+        <div class="final-match-title"></div>
+        <div class="final-match-score"></div>
+        <div class="final-match-cols">
+          <div class="match-col">
+            <div class="col-name final-col-name-1"></div>
+            <div class="final-rows final-rows-1"></div>
+          </div>
+          <div class="match-col">
+            <div class="col-name final-col-name-2"></div>
+            <div class="final-rows final-rows-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="final-match-block" id="final-block-3">
+        <div class="final-match-title"></div>
+        <div class="final-match-score"></div>
+        <div class="final-match-cols">
+          <div class="match-col">
+            <div class="col-name final-col-name-1"></div>
+            <div class="final-rows final-rows-1"></div>
+          </div>
+          <div class="match-col">
+            <div class="col-name final-col-name-2"></div>
+            <div class="final-rows final-rows-2"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-card">
+    <div class="modal-text">Êtes-vous sûr(e) d'arrêter le match et de passer au suivant&nbsp;?</div>
+    <div class="modal-actions">
+      <button class="modal-btn no" id="modal-no">Non</button>
+      <button class="modal-btn yes" id="modal-yes">Oui</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUIT TOURNAMENT MODAL -->
+<div class="modal-overlay" id="quit-modal">
+  <div class="modal-card">
+    <div class="modal-text">Êtes-vous sûr(e) de vouloir quitter le tournoi actuel&nbsp;? Cela supprimera toutes les données.</div>
+    <div class="modal-actions">
+      <button class="modal-btn no" id="quit-modal-no">Non</button>
+      <button class="modal-btn yes" id="quit-modal-yes">Oui</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESUME TOURNAMENT MODAL -->
+<div class="modal-overlay" id="resume-modal">
+  <div class="modal-card">
+    <div class="modal-text">Un tournoi est en cours. Voulez-vous le reprendre&nbsp;?</div>
+    <div class="modal-actions">
+      <button class="modal-btn no" id="resume-modal-no">Non</button>
+      <button class="modal-btn yes" id="resume-modal-yes">Oui</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- Capacitor plugin references (globals loaded via vendor scripts) ----
+  const CAP = window.Capacitor;
+  const IS_NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
+  const { Preferences } = (window.capacitorPreferences || {});
+  const { Filesystem, Directory } = (window.capacitorFilesystem || {});
+  const { App: CapApp } = (window.capacitorApp || {});
+  const SAVE_KEY = 'handball_tournament_state';
+
+  // ---- navigation ----
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if(id !== 'screen-start') persistState(id);
+  }
+  document.getElementById('btn-start').addEventListener('click', () => showScreen('screen-teams'));
+  document.getElementById('btn-back-1').addEventListener('click', () => showScreen('screen-start'));
+  document.getElementById('btn-back-2').addEventListener('click', () => showScreen('screen-teams'));
+  document.getElementById('btn-back-3').addEventListener('click', () => showScreen('screen-contracts'));
+  document.getElementById('btn-back-4').addEventListener('click', () => showScreen('screen-matchup'));
+  document.getElementById('btn-back-recap').addEventListener('click', () => showScreen('screen-match'));
+
+  // ---- teams screen ----
+  const teams = ['a','b','c'];
+  teams.forEach(team => {
+    const container = document.querySelector(`.players[data-team="${team}"]`);
+    for(let i=1;i<=4;i++){
+      const row = document.createElement('div');
+      row.className = 'player-row';
+      row.innerHTML = `
+        <div class="player-num">${i}</div>
+        <input type="text" class="player-name" placeholder="Nom du joueur ${i}" data-team="${team}" data-slot="${i}">
+      `;
+      container.appendChild(row);
+    }
+  });
+
+  function updateCounts(){
+    teams.forEach(team => {
+      const inputs = document.querySelectorAll(`input.player-name[data-team="${team}"]`);
+      const filled = Array.from(inputs).filter(i => i.value.trim().length > 0).length;
+      document.querySelector(`.team-count[data-count="${team}"]`).textContent = `${filled}/4`;
+    });
+  }
+  document.addEventListener('input', (e) => {
+    if(e.target.classList.contains('player-name')) updateCounts();
+  });
+
+  document.getElementById('next-btn').addEventListener('click', () => {
+    const inputs = document.querySelectorAll('input.player-name');
+    const filled = Array.from(inputs).filter(i => i.value.trim().length > 0).length;
+    const hint = document.getElementById('hint');
+    if(filled < 12){
+      hint.textContent = 'Il manque des joueurs : complétez les 3 équipes (4 joueurs chacune) avant de continuer.';
+      hint.style.color = '#ff6b4a';
+      return;
+    }
+    showScreen('screen-contracts');
+  });
+
+  // ---- contracts screen : steppers ----
+  document.querySelectorAll('.stepper').forEach(stepper => {
+    const valueEl = stepper.querySelector('.stepper-value');
+    const minus = stepper.querySelector('.minus');
+    const plus = stepper.querySelector('.plus');
+    let value = parseInt(valueEl.textContent, 10);
+    const min = 1, max = 20;
+
+    function render(){ valueEl.textContent = value; }
+
+    minus.addEventListener('click', () => {
+      if(value > min) value--;
+      render();
+    });
+    plus.addEventListener('click', () => {
+      if(value < max) value++;
+      render();
+    });
+  });
+
+  document.getElementById('start-match-btn').addEventListener('click', () => {
+    const contracts = {};
+    document.querySelectorAll('.stepper').forEach(stepper => {
+      contracts[stepper.dataset.contract] = parseInt(stepper.querySelector('.stepper-value').textContent, 10);
+    });
+    MATCH_CONTRACT_TARGETS = contracts;
+    currentMatchIndex = 0;
+    loadMatchup();
+  });
+
+  // ---- data helpers ----
+  const TEAM_INFO = {
+    a: { label: 'Équipe A', colorVar: '--team-a' },
+    b: { label: 'Équipe B', colorVar: '--team-b' },
+    c: { label: 'Équipe C', colorVar: '--team-c' }
+  };
+  const CONTRACTS = [
+    { id: 'buts', label: 'Buts marqués', colorVar: '--team-a' },
+    { id: 'passes', label: 'Passes décisives', colorVar: '--team-b' },
+    { id: 'recuperations', label: 'Récupérations', colorVar: '--team-c' },
+    { id: 'arrets', label: "Arrêt du gardien", colorVar: '--violet' }
+  ];
+  const MATCH_ORDER = [['a','b'], ['b','c'], ['c','a']];
+  let currentMatchIndex = 0;
+  let MATCH_CONTRACT_TARGETS = {};
+  let playerContracts = {}; // { a: [contractIndex x4], b: [...] }
+
+  function getRoster(teamKey){
+    return Array.from(document.querySelectorAll(`input.player-name[data-team="${teamKey}"]`))
+      .map((input, i) => input.value.trim() || `Joueur ${i+1}`);
+  }
+
+  // ---- screen 3 : matchup ----
+  function loadMatchup(){
+    const [t1, t2] = MATCH_ORDER[currentMatchIndex];
+    const info1 = TEAM_INFO[t1], info2 = TEAM_INFO[t2];
+    const roster1 = getRoster(t1), roster2 = getRoster(t2);
+
+    document.getElementById('matchup-col-1').style.setProperty('--col-accent', `var(${info1.colorVar})`);
+    document.getElementById('matchup-col-2').style.setProperty('--col-accent', `var(${info2.colorVar})`);
+
+    document.getElementById('matchup-title').innerHTML =
+      `<span class="side-a" style="color:var(${info1.colorVar})">${info1.label}</span><span class="vs">vs</span><span class="side-b" style="color:var(${info2.colorVar})">${info2.label}</span>`;
+
+    document.getElementById('matchup-name-1').textContent = info1.label;
+    document.getElementById('matchup-name-2').textContent = info2.label;
+
+    document.getElementById('matchup-list-1').innerHTML = roster1.map(n => `<li>${n}</li>`).join('');
+    document.getElementById('matchup-list-2').innerHTML = roster2.map(n => `<li>${n}</li>`).join('');
+
+    showScreen('screen-matchup');
+  }
+
+  document.getElementById('go-btn').addEventListener('click', () => {
+    loadContractSelect();
+  });
+
+  // ---- screen 4 : contract selection per player ----
+  function loadContractSelect(keepExisting){
+    const [t1, t2] = MATCH_ORDER[currentMatchIndex];
+    const info1 = TEAM_INFO[t1], info2 = TEAM_INFO[t2];
+    const roster1 = getRoster(t1), roster2 = getRoster(t2);
+
+    if(!keepExisting || !playerContracts[t1] || !playerContracts[t2]){
+      // default: distinct contract per player (index = slot order)
+      playerContracts[t1] = roster1.map((_, i) => i % CONTRACTS.length);
+      playerContracts[t2] = roster2.map((_, i) => i % CONTRACTS.length);
+    }
+
+    document.getElementById('select-title').textContent = `Choix des contrats ${info1.label.slice(-1)} vs ${info2.label.slice(-1)}`;
+
+    document.getElementById('select-col-1').style.setProperty('--col-accent', `var(${info1.colorVar})`);
+    document.getElementById('select-col-2').style.setProperty('--col-accent', `var(${info2.colorVar})`);
+    document.getElementById('select-name-1').textContent = info1.label;
+    document.getElementById('select-name-2').textContent = info2.label;
+
+    renderContractList(t1, roster1, 'select-list-1');
+    renderContractList(t2, roster2, 'select-list-2');
+
+    checkDuplicates();
+    showScreen('screen-contract-select');
+  }
+
+  function renderContractList(teamKey, roster, containerId){
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    roster.forEach((name, i) => {
+      const row = document.createElement('div');
+      row.className = 'player-contract-row';
+      row.dataset.team = teamKey;
+      row.dataset.slot = i;
+      row.innerHTML = `
+        <div class="pc-name">${name}</div>
+        <div class="pc-picker">
+          <button class="pc-btn prev">&lsaquo;</button>
+          <div class="pc-label"></div>
+          <button class="pc-btn next">&rsaquo;</button>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+    updateContractLabels(teamKey);
+  }
+
+  function updateContractLabels(teamKey){
+    const rows = document.querySelectorAll(`.player-contract-row[data-team="${teamKey}"]`);
+    rows.forEach(row => {
+      const slot = parseInt(row.dataset.slot, 10);
+      const idx = playerContracts[teamKey][slot];
+      const contract = CONTRACTS[idx];
+      const target = MATCH_CONTRACT_TARGETS[contract.id];
+      const label = row.querySelector('.pc-label');
+      label.textContent = target !== undefined ? `${contract.label} (${target})` : contract.label;
+      label.style.setProperty('--pc-color', `var(${contract.colorVar})`);
+      row.querySelectorAll('.pc-btn').forEach(btn => btn.style.setProperty('--pc-color', `var(${contract.colorVar})`));
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.pc-btn');
+    if(!btn) return;
+    const row = btn.closest('.player-contract-row');
+    const teamKey = row.dataset.team;
+    const slot = parseInt(row.dataset.slot, 10);
+    const n = CONTRACTS.length;
+    let idx = playerContracts[teamKey][slot];
+    idx = btn.classList.contains('next') ? (idx + 1) % n : (idx - 1 + n) % n;
+    playerContracts[teamKey][slot] = idx;
+    updateContractLabels(teamKey);
+    checkDuplicates();
+    persistState('screen-contract-select');
+  });
+
+  function checkDuplicates(){
+    const [t1, t2] = MATCH_ORDER[currentMatchIndex];
+    let hasDuplicate = false;
+    [t1, t2].forEach(teamKey => {
+      const values = playerContracts[teamKey];
+      const seen = {};
+      const dupSlots = new Set();
+      values.forEach((v, slot) => {
+        if(seen[v] !== undefined){ dupSlots.add(slot); dupSlots.add(seen[v]); }
+        else seen[v] = slot;
+      });
+      if(dupSlots.size > 0) hasDuplicate = true;
+      document.querySelectorAll(`.player-contract-row[data-team="${teamKey}"]`).forEach(row => {
+        const slot = parseInt(row.dataset.slot, 10);
+        row.classList.toggle('duplicate', dupSlots.has(slot));
+      });
+    });
+
+    const hint = document.getElementById('select-hint');
+    const playBtn = document.getElementById('play-btn');
+    if(hasDuplicate){
+      hint.textContent = 'Deux joueurs de la même équipe ne peuvent pas choisir le même contrat.';
+      playBtn.disabled = true;
+      playBtn.style.opacity = 0.4;
+      playBtn.style.cursor = 'not-allowed';
+    } else {
+      hint.textContent = '';
+      playBtn.disabled = false;
+      playBtn.style.opacity = 1;
+      playBtn.style.cursor = 'pointer';
+    }
+    return !hasDuplicate;
+  }
+
+  document.getElementById('play-btn').addEventListener('click', () => {
+    if(!checkDuplicates()) return;
+    loadMatchScreen();
+  });
+
+  // ---- screen 5 : match / observation ----
+  let playerProgress = {}; // { a: [count x4], b: [...] }
+  let teamScore = { a: 0, b: 0 };
+
+  function loadMatchScreen(keepExisting){
+    const [t1, t2] = MATCH_ORDER[currentMatchIndex];
+    const info1 = TEAM_INFO[t1], info2 = TEAM_INFO[t2];
+    const roster1 = getRoster(t1), roster2 = getRoster(t2);
+
+    if(!keepExisting || !playerProgress[t1] || !playerProgress[t2]){
+      playerProgress[t1] = roster1.map(() => 0);
+      playerProgress[t2] = roster2.map(() => 0);
+      teamScore = { [t1]: 0, [t2]: 0 };
+    }
+
+    document.getElementById('match-title').textContent = `${info1.label} vs ${info2.label} — Match en cours`;
+
+    document.getElementById('match-col-1').style.setProperty('--col-accent', `var(${info1.colorVar})`);
+    document.getElementById('match-col-2').style.setProperty('--col-accent', `var(${info2.colorVar})`);
+    document.getElementById('match-name-1').textContent = info1.label;
+    document.getElementById('match-name-2').textContent = info2.label;
+
+    renderMatchRows(t1, roster1, 'match-rows-1');
+    renderMatchRows(t2, roster2, 'match-rows-2');
+
+    document.getElementById('score-block-1').style.setProperty('--score-color', `var(${info1.colorVar})`);
+    document.getElementById('score-block-2').style.setProperty('--score-color', `var(${info2.colorVar})`);
+    document.getElementById('score-label-1').textContent = info1.label;
+    document.getElementById('score-label-2').textContent = info2.label;
+    document.getElementById('score-value-1').textContent = teamScore[t1] || 0;
+    document.getElementById('score-value-2').textContent = teamScore[t2] || 0;
+    document.getElementById('score-block-1').dataset.team = t1;
+    document.getElementById('score-block-2').dataset.team = t2;
+
+    showScreen('screen-match');
+  }
+
+  function renderMatchRows(teamKey, roster, containerId){
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    roster.forEach((name, i) => {
+      const contractIdx = playerContracts[teamKey][i];
+      const contract = CONTRACTS[contractIdx];
+      const target = MATCH_CONTRACT_TARGETS[contract.id];
+      const value = (playerProgress[teamKey] && playerProgress[teamKey][i]) || 0;
+      const isValidated = value >= target;
+      const row = document.createElement('div');
+      row.className = 'match-row';
+      row.dataset.team = teamKey;
+      row.dataset.slot = i;
+      row.innerHTML = `
+        <div class="mr-info">
+          <div class="mr-name">${name}</div>
+          <div class="mr-contract" style="--mr-color:var(${contract.colorVar})">${contract.label} (${target})</div>
+        </div>
+        <div class="mr-counter">
+          <button class="mr-btn minus">&minus;</button>
+          <div class="mr-value${isValidated ? ' validated' : ''}">${value}</div>
+          <button class="mr-btn plus">&plus;</button>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  function updateMatchRow(row){
+    const teamKey = row.dataset.team;
+    const slot = parseInt(row.dataset.slot, 10);
+    const value = playerProgress[teamKey][slot];
+    const contractIdx = playerContracts[teamKey][slot];
+    const target = MATCH_CONTRACT_TARGETS[CONTRACTS[contractIdx].id];
+    const valueEl = row.querySelector('.mr-value');
+    valueEl.textContent = value;
+    valueEl.classList.toggle('validated', value >= target);
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.mr-btn');
+    if(!btn) return;
+    const row = btn.closest('.match-row');
+    const teamKey = row.dataset.team;
+    const slot = parseInt(row.dataset.slot, 10);
+    if(btn.classList.contains('plus')) playerProgress[teamKey][slot]++;
+    else playerProgress[teamKey][slot] = Math.max(0, playerProgress[teamKey][slot] - 1);
+    updateMatchRow(row);
+    persistState('screen-match');
+  });
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.score-btn');
+    if(!btn) return;
+    const block = btn.closest('.score-block');
+    const teamKey = block.dataset.team;
+    if(btn.classList.contains('plus')) teamScore[teamKey]++;
+    else teamScore[teamKey] = Math.max(0, teamScore[teamKey] - 1);
+    block.querySelector('.score-value').textContent = teamScore[teamKey];
+    persistState('screen-match');
+  });
+
+  // ---- end of match confirmation ----
+  const confirmModal = document.getElementById('confirm-modal');
+  document.getElementById('end-match-btn').addEventListener('click', () => {
+    confirmModal.classList.add('active');
+  });
+  document.getElementById('modal-no').addEventListener('click', () => {
+    confirmModal.classList.remove('active');
+  });
+  document.getElementById('modal-yes').addEventListener('click', () => {
+    confirmModal.classList.remove('active');
+    loadRecapScreen();
+  });
+
+  // ---- screen 6 : recap ----
+  let matchResults = []; // history of finished matches
+
+  function loadRecapScreen(){
+    const [t1, t2] = MATCH_ORDER[currentMatchIndex];
+    const info1 = TEAM_INFO[t1], info2 = TEAM_INFO[t2];
+    const roster1 = getRoster(t1), roster2 = getRoster(t2);
+
+    document.getElementById('recap-title').textContent = `${info1.label} vs ${info2.label} — Résultat`;
+    document.getElementById('recap-col-1').style.setProperty('--col-accent', `var(${info1.colorVar})`);
+    document.getElementById('recap-col-2').style.setProperty('--col-accent', `var(${info2.colorVar})`);
+    document.getElementById('recap-name-1').textContent = info1.label;
+    document.getElementById('recap-name-2').textContent = info2.label;
+
+    const validated1 = renderRecapRows(t1, roster1, 'recap-rows-1');
+    const validated2 = renderRecapRows(t2, roster2, 'recap-rows-2');
+
+    const score1 = teamScore[t1], score2 = teamScore[t2];
+    const final1 = score1 + validated1;
+    const final2 = score2 + validated2;
+
+    document.getElementById('recap-line-score').innerHTML =
+      `Score du match : <b>${score1} - ${score2}</b>`;
+    document.getElementById('recap-line-contracts').innerHTML =
+      `Contrats validés : <b style="color:var(${info1.colorVar})">${info1.label} ${validated1}</b> - <b style="color:var(${info2.colorVar})">${info2.label} ${validated2}</b>`;
+    document.getElementById('recap-final').innerHTML =
+      `Score final : <span style="color:var(${info1.colorVar})">${final1}</span> - <span style="color:var(${info2.colorVar})">${final2}</span>`;
+
+    // n'enregistre le résultat qu'une seule fois par match (évite les doublons en cas de reprise)
+    if(matchResults.length === currentMatchIndex){
+      matchResults.push({
+        teams: [t1, t2],
+        rosters: { [t1]: roster1, [t2]: roster2 },
+        contracts: { [t1]: [...playerContracts[t1]], [t2]: [...playerContracts[t2]] },
+        progress: { [t1]: [...playerProgress[t1]], [t2]: [...playerProgress[t2]] },
+        goals: { [t1]: score1, [t2]: score2 },
+        validated: { [t1]: validated1, [t2]: validated2 },
+        finalScore: { [t1]: final1, [t2]: final2 }
+      });
+    }
+
+    const nextBtn = document.getElementById('next-match-btn');
+    nextBtn.textContent = currentMatchIndex < MATCH_ORDER.length - 1
+      ? 'Passer au match suivant'
+      : 'Voir le classement final';
+
+    showScreen('screen-recap');
+  }
+
+  function renderRecapRows(teamKey, roster, containerId){
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    let validatedCount = 0;
+    roster.forEach((name, i) => {
+      const contractIdx = playerContracts[teamKey][i];
+      const contract = CONTRACTS[contractIdx];
+      const target = MATCH_CONTRACT_TARGETS[contract.id];
+      const value = playerProgress[teamKey][i];
+      const isValidated = value >= target;
+      if(isValidated) validatedCount++;
+
+      const row = document.createElement('div');
+      row.className = 'match-row';
+      row.innerHTML = `
+        <div class="mr-info">
+          <div class="mr-name">${name}</div>
+          <div class="mr-contract" style="--mr-color:var(${contract.colorVar})">${contract.label} (${target})</div>
+        </div>
+        <div class="mr-counter">
+          <div class="mr-value readonly${isValidated ? ' validated' : ''}">${value}</div>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+    return validatedCount;
+  }
+
+  document.getElementById('next-match-btn').addEventListener('click', () => {
+    if(currentMatchIndex < MATCH_ORDER.length - 1){
+      currentMatchIndex++;
+      loadMatchup();
+    } else {
+      loadFinalScreen();
+    }
+  });
+
+  // ---- screen 7 : classement final ----
+  function loadFinalScreen(){
+    // team stats across their 2 matches: wins, contracts validated, goal diff
+    const stats = {
+      a: { points: 0, validated: 0, goalsFor: 0, goalsAgainst: 0 },
+      b: { points: 0, validated: 0, goalsFor: 0, goalsAgainst: 0 },
+      c: { points: 0, validated: 0, goalsFor: 0, goalsAgainst: 0 }
+    };
+    matchResults.forEach(m => {
+      const [t1, t2] = m.teams;
+      stats[t1].validated += m.validated[t1];
+      stats[t2].validated += m.validated[t2];
+      stats[t1].goalsFor += m.goals[t1]; stats[t1].goalsAgainst += m.goals[t2];
+      stats[t2].goalsFor += m.goals[t2]; stats[t2].goalsAgainst += m.goals[t1];
+      if(m.finalScore[t1] > m.finalScore[t2]){ stats[t1].points += 3; }
+      else if(m.finalScore[t2] > m.finalScore[t1]){ stats[t2].points += 3; }
+      else { stats[t1].points += 1; stats[t2].points += 1; }
+    });
+
+    const ranking = ['a','b','c'].map(t => ({
+      team: t,
+      points: stats[t].points,
+      validated: stats[t].validated,
+      diff: stats[t].goalsFor - stats[t].goalsAgainst
+    })).sort((x, y) => (y.points - x.points) || (y.validated - x.validated) || (y.diff - x.diff));
+
+    const summaryBody = document.getElementById('final-summary-body');
+    summaryBody.innerHTML = ranking.map((r, i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td style="color:var(${TEAM_INFO[r.team].colorVar})">${TEAM_INFO[r.team].label}</td>
+        <td>${r.points}</td>
+        <td>${r.validated}</td>
+        <td>${r.diff > 0 ? '+' : ''}${r.diff}</td>
+      </tr>
+    `).join('');
+
+    matchResults.forEach((m, i) => {
+      const [t1, t2] = m.teams;
+      const info1 = TEAM_INFO[t1], info2 = TEAM_INFO[t2];
+      const block = document.getElementById(`final-block-${i+1}`);
+      block.querySelector('.final-match-title').innerHTML =
+        `<span style="color:var(${info1.colorVar})">${info1.label}</span> vs <span style="color:var(${info2.colorVar})">${info2.label}</span>`;
+      block.querySelector('.final-match-score').innerHTML =
+        `Score avec contrat : <b style="color:var(${info1.colorVar})">${m.finalScore[t1]}</b> - <b style="color:var(${info2.colorVar})">${m.finalScore[t2]}</b>`;
+      block.querySelector('.final-col-name-1').textContent = info1.label;
+      block.querySelector('.final-col-name-1').style.color = `var(${info1.colorVar})`;
+      block.querySelector('.final-col-name-2').textContent = info2.label;
+      block.querySelector('.final-col-name-2').style.color = `var(${info2.colorVar})`;
+
+      block.querySelector('.final-rows-1').innerHTML = buildFinalRows(t1, m);
+      block.querySelector('.final-rows-2').innerHTML = buildFinalRows(t2, m);
+    });
+
+    showScreen('screen-final');
+    exportFinalScreenToPdf();
+  }
+
+  // ---- PDF export (prototype : déclenche un téléchargement navigateur) ----
+  async function exportFinalScreenToPdf(){
+    try{
+      if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
+      // léger délai pour laisser le DOM se stabiliser après l'affichage de l'écran
+      await new Promise(r => setTimeout(r, 150));
+
+      const target = document.getElementById('final-scroll');
+      const canvas = await html2canvas(target, {
+        backgroundColor: '#0c2436',
+        scale: 2,
+        useCORS: true
+      });
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'pt', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = canvas.height * imgWidth / canvas.width;
+      const imgData = canvas.toDataURL('image/png');
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while(heightLeft > 0){
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const filename = `classement-final-${Date.now()}.pdf`;
+
+      if(IS_NATIVE && Filesystem){
+        // écriture native, hors-ligne, directement dans le dossier Documents de la tablette
+        const base64 = pdf.output('datauristring').split(',')[1];
+        await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: Directory.Documents
+        });
+        console.log('PDF enregistré dans Documents :', filename);
+      } else {
+        // fallback navigateur (test hors application native) : déclenche un téléchargement classique
+        pdf.save(filename);
+      }
+    } catch(err){
+      console.error('Erreur génération PDF :', err);
+    }
+  }
+
+  function buildFinalRows(teamKey, m){
+    return m.rosters[teamKey].map((name, i) => {
+      const contract = CONTRACTS[m.contracts[teamKey][i]];
+      const target = MATCH_CONTRACT_TARGETS[contract.id];
+      const value = m.progress[teamKey][i];
+      const isValidated = value >= target;
+      return `
+        <div class="match-row">
+          <div class="mr-info">
+            <div class="mr-name">${name}</div>
+            <div class="mr-contract" style="--mr-color:var(${contract.colorVar})">${contract.label} (${target})</div>
+          </div>
+          <div class="mr-counter">
+            <div class="mr-value readonly${isValidated ? ' validated' : ''}">${value}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ---- home / quit tournament ----
+  const quitModal = document.getElementById('quit-modal');
+  document.getElementById('home-btn').addEventListener('click', () => {
+    quitModal.classList.add('active');
+  });
+  document.getElementById('stop-tournament-btn').addEventListener('click', () => {
+    quitModal.classList.add('active');
+  });
+  document.getElementById('quit-modal-no').addEventListener('click', () => {
+    quitModal.classList.remove('active');
+  });
+  document.getElementById('quit-modal-yes').addEventListener('click', () => {
+    quitModal.classList.remove('active');
+    resetTournament();
+    showScreen('screen-start');
+  });
+
+  function resetTournament(){
+    currentMatchIndex = 0;
+    matchResults = [];
+    playerContracts = {};
+    playerProgress = {};
+    teamScore = { a: 0, b: 0, c: 0 };
+    MATCH_CONTRACT_TARGETS = {};
+    if(Preferences) Preferences.remove({ key: SAVE_KEY });
+  }
+
+  // ==================================================================
+  // ---- PERSISTANCE (sauvegarde / reprise automatique du tournoi) ----
+  // ==================================================================
+
+  function persistState(lastScreen){
+    if(!Preferences) return; // pas de plugin dispo (ne devrait pas arriver)
+    const rosters = {
+      a: getRoster('a'), b: getRoster('b'), c: getRoster('c')
+    };
+    const state = {
+      lastScreen,
+      rosters,
+      currentMatchIndex,
+      MATCH_CONTRACT_TARGETS,
+      playerContracts,
+      playerProgress,
+      teamScore,
+      matchResults
+    };
+    Preferences.set({ key: SAVE_KEY, value: JSON.stringify(state) }).catch(err => {
+      console.error('Erreur sauvegarde du tournoi :', err);
+    });
+  }
+
+  function applyRosters(rosters){
+    ['a','b','c'].forEach(team => {
+      const inputs = document.querySelectorAll(`input.player-name[data-team="${team}"]`);
+      (rosters[team] || []).forEach((name, i) => {
+        if(inputs[i]) inputs[i].value = name;
+      });
+    });
+    updateCounts();
+  }
+
+  function applyContractTargets(targets){
+    document.querySelectorAll('.stepper').forEach(stepper => {
+      const id = stepper.dataset.contract;
+      if(targets[id] !== undefined){
+        stepper.querySelector('.stepper-value').textContent = targets[id];
+      }
+    });
+  }
+
+  async function restoreStateAndResume(state){
+    // restaure toutes les variables globales
+    applyRosters(state.rosters || {});
+    currentMatchIndex = state.currentMatchIndex || 0;
+    MATCH_CONTRACT_TARGETS = state.MATCH_CONTRACT_TARGETS || {};
+    playerContracts = state.playerContracts || {};
+    playerProgress = state.playerProgress || {};
+    teamScore = state.teamScore || { a: 0, b: 0, c: 0 };
+    matchResults = state.matchResults || [];
+    applyContractTargets(MATCH_CONTRACT_TARGETS);
+
+    const screen = state.lastScreen;
+    if(screen === 'screen-teams' || screen === 'screen-contracts'){
+      showScreen(screen);
+    } else if(screen === 'screen-matchup'){
+      loadMatchup();
+    } else if(screen === 'screen-contract-select'){
+      loadContractSelect(true);
+    } else if(screen === 'screen-match'){
+      loadMatchScreen(true);
+    } else if(screen === 'screen-recap'){
+      loadRecapScreen();
+    } else if(screen === 'screen-final'){
+      loadFinalScreen();
+    } else {
+      showScreen('screen-teams');
+    }
+  }
+
+  async function checkForSavedTournament(){
+    if(!Preferences) return;
+    try{
+      const res = await Preferences.get({ key: SAVE_KEY });
+      if(res && res.value){
+        const state = JSON.parse(res.value);
+        openResumeModal(state);
+      }
+    } catch(err){
+      console.error('Erreur lecture sauvegarde :', err);
+    }
+  }
+
+  function openResumeModal(state){
+    const modal = document.getElementById('resume-modal');
+    modal.classList.add('active');
+    const yesBtn = document.getElementById('resume-modal-yes');
+    const noBtn = document.getElementById('resume-modal-no');
+    const onYes = () => {
+      modal.classList.remove('active');
+      yesBtn.removeEventListener('click', onYes);
+      noBtn.removeEventListener('click', onNo);
+      restoreStateAndResume(state);
+    };
+    const onNo = () => {
+      modal.classList.remove('active');
+      yesBtn.removeEventListener('click', onYes);
+      noBtn.removeEventListener('click', onNo);
+      resetTournament();
+    };
+    yesBtn.addEventListener('click', onYes);
+    noBtn.addEventListener('click', onNo);
+  }
+
+  // ==================================================================
+  // ---- BOUTON RETOUR ANDROID (interception pendant le tournoi) ----
+  // ==================================================================
+
+  const MID_TOURNAMENT_SCREENS = [
+    'screen-teams', 'screen-contracts', 'screen-matchup',
+    'screen-contract-select', 'screen-match', 'screen-recap'
+  ];
+
+  if(CapApp && CapApp.addListener){
+    CapApp.addListener('backButton', () => {
+      const activeScreen = document.querySelector('.screen.active');
+      const activeId = activeScreen ? activeScreen.id : null;
+
+      if(activeId === 'screen-start'){
+        CapApp.exitApp();
+        return;
+      }
+      if(MID_TOURNAMENT_SCREENS.includes(activeId)){
+        // empêche une sortie accidentelle : ouvre la confirmation de sortie du tournoi
+        document.getElementById('quit-modal').classList.add('active');
+        return;
+      }
+      if(activeId === 'screen-final'){
+        // laisse l'utilisateur utiliser le bouton "Accueil" dédié ; ne quitte pas l'appli directement
+        document.getElementById('quit-modal').classList.add('active');
+      }
+    });
+  }
+
+  // ==================================================================
+  // ---- INITIALISATION AU LANCEMENT ----
+  // ==================================================================
+  checkForSavedTournament();
+</script>
+
+</body>
+</html>
