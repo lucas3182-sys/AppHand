@@ -708,6 +708,16 @@
   #screen-recap .col-name{
     font-size: clamp(20px, 2.4vw, 28px);
   }
+  /* les rangées ne doivent plus être forcées à rétrécir (c'est ça qui causait
+     le chevauchement du nom et du contrat) : elles gardent leur taille naturelle,
+     et l'écran défile si besoin (overflow-y déjà activé plus haut) */
+  #screen-recap .match-col .rows{ flex: none; min-height: auto; }
+  #screen-recap .match-row{ flex: none; min-height: auto; }
+  #screen-recap .mr-name, #screen-recap .mr-contract{
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
 
   .mr-value.readonly{ cursor: default; }
 
